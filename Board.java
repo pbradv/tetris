@@ -1,35 +1,64 @@
 import processing.core.PApplet;
 import processing.core.PGraphics;
 
+import java.util.ArrayList;
+import java.util.Collections;
+
 public class Board extends PApplet{
     final int numberOfRows = 10;
-    final int numberOfColumns = 22;
+    final int numberOfColumns = 23;
 
     cell[][] board;
+    cell[][] heldPiece;
 
     tris controlledBlock;
 
+    Coordinates[] guideBlock;
+    float guideBlockColor;
+
     int heldPieceType = -1;
     boolean canSwap;
+    boolean blockPlaced;
+
+    int score = 0;
+    int level = 1;
+    int totalLinesCleared = 0;
 
     public Board() {
         board = new cell[numberOfRows][numberOfColumns];
+        heldPiece = new cell[4][4];
+
         for (int row = 0; row < numberOfRows; row++) {
             for (int col = 0; col < numberOfColumns; col++) {
                 board[row][col] = new cell();
             }
         }
+        
+        for (int row = 0; row < heldPiece.length; row++) {
+            for (int col = 0; col < heldPiece[row].length; col++) {
+                heldPiece[row][col] = new cell();
+            }
+        }
+
         canSwap = true;
+        blockPlaced = false;
+
+        guideBlock = new Coordinates[4];
+        guideBlockColor = 60;
+        
     }
 
     public void drawBoard(float x, float y, PGraphics g) {
         cell currentCell;
         float initialY = y;
+
         for (int row = 0; row < board.length; row++) {
             for (int col = 0; col < board[row].length; col++) {
-                currentCell = board[row][col];                
-                g.fill(currentCell.red, currentCell.green, currentCell.blue);
-                g.rect(x, y, 20, 20);
+                currentCell = board[row][col];   
+                if (col > 2 || currentCell.red != 32) {
+                    g.fill(currentCell.red, currentCell.green, currentCell.blue);
+                    g.rect(x, y, 20, 20);
+                }             
                 y += 20;
             }
             y = initialY;
@@ -37,13 +66,14 @@ public class Board extends PApplet{
         }
     }
 
-    public void drawHeldPiece(float x, float y, PGraphics g) {
-        
+    public void initializeBlock(tris t) {
+        controlledBlock = t;
+        addBlock(controlledBlock);
     }
 
     public void addBlock(tris t) {
-        controlledBlock = t;
-        Coordinates[] allBlocks = controlledBlock.getAllBlocks();
+        addGuideBlock();
+        Coordinates[] allBlocks = t.getAllBlocks();
         board[allBlocks[0].x][allBlocks[0].y].setColor(t.getRed(), t.getGreen(), t.getBlue());
         board[allBlocks[1].x][allBlocks[1].y].setColor(t.getRed(), t.getGreen(), t.getBlue());
         board[allBlocks[2].x][allBlocks[2].y].setColor(t.getRed(), t.getGreen(), t.getBlue());
@@ -53,39 +83,32 @@ public class Board extends PApplet{
     public boolean autoMove() {
         Coordinates[] temp = controlledBlock.getAllBlocks();
         if (verifyNewPosition(temp, 0, 1)) {
-            moveBlock(0, 1);
+            moveBlock(controlledBlock, 0, 1);
             return false;
         }
         else {
-            board[temp[0].x][temp[0].y].setBlockPlaced(true);
-            board[temp[1].x][temp[1].y].setBlockPlaced(true);
-            board[temp[2].x][temp[2].y].setBlockPlaced(true);
-            board[temp[3].x][temp[3].y].setBlockPlaced(true);
-            canSwap = true;
-            for (int a = 0; a < temp.length; a++) {
-                lineClear(temp[a].y);
-            }
+            placeBlock();
             return true;
         }
     }
 
-    // the order of this should be changed
-    // blocks should only be able to be placed if the user pressed space or hard drops
-    // or when the game moves automatically moves the block down
     public void playerMove(int x, int y) {
         Coordinates[] allBlocks = controlledBlock.getAllBlocks();
-        if (verifyNewPosition(allBlocks, x, y)) {
-            moveBlock(x, y);
+        if (verifyNewPosition(allBlocks, x, 0)) {
+            moveBlock(controlledBlock, x, 0);
+        }
+        if (verifyNewPosition(allBlocks, 0, y)) {
+            moveBlock(controlledBlock, 0, y);
+            score += y;
         }
     }
 
-    public void moveBlock(int x, int y) {
-        resetColor();
-        controlledBlock.moveBlock(x, y);
-        addBlock(controlledBlock);
+    public void moveBlock(tris t, int x, int y) {
+        resetColor(t);
+        t.moveBlock(x, y);
+        addBlock(t);
     }
 
-    // try to combine the lower class with this
     public boolean verifyNewPosition(Coordinates[] allBlocks, int x, int y) {
         // check within y bounds
         for (int i = 0; i < allBlocks.length; i++) {
@@ -101,52 +124,79 @@ public class Board extends PApplet{
         }
         // check blocks aren't placed
         for (int i = 0; i < allBlocks.length; i++) {
-            if (board[allBlocks[i].x + x][allBlocks[i].y + y].getBlockPlaced()) {
+            if (board[allBlocks[i].x + x][allBlocks[i].y + y].getCellFilled()) {
                 return false;
             }
         }
         return true;
     }
 
-    public boolean verifyNewPosition(Coordinates[] allBlocks) {
-        // check within y bounds
-        for (int i = 0; i < allBlocks.length; i++) {
-            if (allBlocks[i].y >= numberOfColumns || allBlocks[i].y < 0) {
-                return false;
-            }
-        }
-        // check within x bounds
-        for (int i = 0; i < allBlocks.length; i++) {
-            if (allBlocks[i].x < 0 || allBlocks[i].x >= numberOfRows)  {
-                return false;
-            }
-        }
-        // check blocks aren't placed
-        for (int i = 0; i < allBlocks.length; i++) {
-            if (board[allBlocks[i].x][allBlocks[i].y].getBlockPlaced()) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    public void resetColor() {
-        Coordinates allBlocks[] = controlledBlock.getAllBlocks();
+    public void resetColor(tris t) {
+        Coordinates allBlocks[] = t.getAllBlocks();
         board[allBlocks[0].x][allBlocks[0].y].setColor(32);
         board[allBlocks[1].x][allBlocks[1].y].setColor(32);
         board[allBlocks[2].x][allBlocks[2].y].setColor(32);
         board[allBlocks[3].x][allBlocks[3].y].setColor(32);
     }
 
-    private void lineClear(int col) {
-        boolean b = true;
-        for (int row = 0; row < numberOfRows; row++) {
-            if (!board[row][col].getBlockPlaced()) {
-                b = false;
+    private void placeBlock() {
+        blockPlaced = true;
+        Coordinates allBlocks[] = controlledBlock.getAllBlocks();
+        canSwap = true;
+        for (int i = 0; i < allBlocks.length; i++) {
+            board[allBlocks[i].x][allBlocks[i].y].setCellFilled(true);
+        }
+        lineClear();
+    }
+
+    private void lineClear() {
+        Coordinates[] allBlocks = controlledBlock.getAllBlocks();
+        ArrayList<Integer> columns = new ArrayList<Integer>();
+        int nextY;
+        int col;
+
+        for (int index = 0; index < allBlocks.length; index++) {
+            nextY = allBlocks[index].y;
+            if (!columns.contains(nextY)) {
+                columns.add(nextY);
             }
         }
-        if (b) {
-            for ( ; col > 0; col--) {
+
+        Collections.sort(columns);
+
+        System.out.println(columns);
+
+        for (int index = 0; index < columns.size(); index++) {
+            col = columns.get(index);
+            for (int row = 0; row < numberOfRows; row++) {
+                if (!board[row][col].getCellFilled()) {
+                    columns.remove(index);
+                    index--;
+                    break;
+                }
+            }
+        }
+
+        if (columns.size() == 1) {
+            score += 100;
+        }
+        else if (columns.size() == 2) {
+            score += 300;
+        }
+        else if (columns.size() == 3) {
+            score += 500;
+        }
+        else if (columns.size() == 4) {
+            score += 800;
+        }
+
+        totalLinesCleared += columns.size();
+        if (level * 20 < totalLinesCleared) {
+            level++;
+        }
+        
+        for (int index = 0; index < columns.size(); index++) {
+            for (col = columns.get(index); col > 0; col--) {
                 for (int row = 0; row < numberOfRows; row++) {
                     board[row][col] = board[row][col - 1];
                 }
@@ -159,54 +209,77 @@ public class Board extends PApplet{
 
     public boolean checkLoss() {
         for (int row = 0; row < numberOfRows; row++) {
-            if (board[row][2].getBlockPlaced()) {
+            if (board[row][2].getCellFilled()) {
                 return true;
             }
         }
         return false;
     }
 
+    // possibly add more newPosition coords, expand to 2
     public void rotatePiece(int n) {
+
         Coordinates temp[] = controlledBlock.rotatePiece(n);
-        if (verifyNewPosition(temp)) {
-            resetColor();
-            controlledBlock.allBlocks = temp;
-            addBlock(controlledBlock);
+        int[][] newPosition = {{0, 0}, {1, 0}, {-1, 0}, {0, 1}, {-1, 1}, {1, 1}, {0, -1}, {1, -1}, {-1, -1}};
+
+        for (int index = 0; index < newPosition.length; index++) {
+            if (verifyNewPosition(temp, newPosition[index][0], newPosition[index][1])) {
+                resetColor(controlledBlock);
+                controlledBlock.setAllBlocks(temp, newPosition[index][0], newPosition[index][1]);
+                controlledBlock.setState(controlledBlock.calcNewState(n));
+                addBlock(controlledBlock);
+                break;
+            }
         }
     }
 
+    // bugs:
+    // one time i have gotten the block to float 1 cell above where it should have landed
+    // idk why it did this and i cannot reproduce it
     public void hardDrop() {
         Coordinates allBlocks[] = controlledBlock.getAllBlocks();
-        int col = Math.max(Math.max(allBlocks[0].y, allBlocks[1].y), Math.max(allBlocks[2].y, allBlocks[3].y));
-        System.out.println(allBlocks[0].y + " " + allBlocks[1].y + " " + allBlocks[2].y + " " + allBlocks[3].y + " " + col);
-        int max = numberOfColumns - col; 
-        int newY = max - 1;     
-        outer:
-        for ( ; col < max; col++) {
-            for (int i = 0; i < allBlocks.length; i++) {
-                System.out.println(allBlocks[i].y + " " + col + " = " + (allBlocks[i].y + col));
-                if (board[allBlocks[i].x][allBlocks[i].y + col].getBlockPlaced()) {
-                    System.out.println(true);
-                    newY = col - 1;
-                    break outer;
-                }
+        
+        int i = 0;
+        while (verifyNewPosition(allBlocks, 0, i)) {
+            i++;
+        }
+        moveBlock(controlledBlock, 0, i - 1);
+
+        score += 2 * (i - 1);
+
+        placeBlock();
+    }
+
+    public void addGuideBlock() {
+        System.out.println("blockplaced " + blockPlaced);
+        if (!blockPlaced && guideBlock[0] != null) {
+            for (int index = 0; index < guideBlock.length; index++) {
+                board[guideBlock[index].x][guideBlock[index].y].setColor(32);
             }
         }
-        System.out.println(newY);
-        moveBlock(0, newY);
-        board[allBlocks[0].x][allBlocks[0].y].setBlockPlaced(true);
-        board[allBlocks[1].x][allBlocks[1].y].setBlockPlaced(true);
-        board[allBlocks[2].x][allBlocks[2].y].setBlockPlaced(true);
-        board[allBlocks[3].x][allBlocks[3].y].setBlockPlaced(true);
-        canSwap = true;
-        for (int a = 0; a < allBlocks.length; a++) {
-            lineClear(allBlocks[a].y);
+
+        Coordinates[] allBlocks = controlledBlock.getAllBlocks();
+        for (int index = 0; index < guideBlock.length; index++) {
+            guideBlock[index] = new Coordinates(allBlocks[index].x, allBlocks[index].y);
         }
+        
+        int i = 0;
+        while (verifyNewPosition(guideBlock, 0, i)) {
+            i++;
+        }
+
+        for (int index = 0; index < guideBlock.length; index++) {
+            guideBlock[index].y = guideBlock[index].y + i - 1;
+            board[guideBlock[index].x][guideBlock[index].y].setColor(guideBlockColor);
+        }
+
+        blockPlaced = false;
+
     }
 
     public boolean holdPiece() {
         if (canSwap) {
-            resetColor();
+            resetColor(controlledBlock);
             canSwap = false;
             if (heldPieceType == -1) {
                 heldPieceType = controlledBlock.getBlockType();
@@ -215,7 +288,7 @@ public class Board extends PApplet{
             else {
                 int temp = heldPieceType;
                 heldPieceType = controlledBlock.getBlockType();
-                addBlock(new tris(temp));
+                initializeBlock(new tris(temp));
             }
         }
         return false;
@@ -236,5 +309,17 @@ public class Board extends PApplet{
 
     public cell getCell(int x, int y) {
         return board[x][y];
+    }
+
+    public int getScore() {
+        return score;
+    }
+
+    public int getLevel() {
+        return level;
+    }
+
+    public int totalLinesCleared() {
+        return totalLinesCleared;
     }
 }

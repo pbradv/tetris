@@ -37,11 +37,11 @@ public class cell {
         blue = t;
     }
 
-    public boolean getBlockPlaced() {
+    public boolean getCellFilled() {
         return cellFilled;
     }
 
-    public void setBlockPlaced(boolean b) {
+    public void setCellFilled(boolean b) {
         cellFilled = b;
     }
 }

@@ -8,9 +8,10 @@ public class Tetris extends PApplet {
     float boardX = 150;
     float boardY = 0;
 
-    long startTime;
-    long currentTime;
-    long autoMove = 1000;
+    int startTime;
+    int currentTime;
+    int autoMove = 1000;
+    int playerMove = 75;
 
     ArrayList<Integer> bag = new ArrayList<Integer>();
     ArrayList<Integer> nextBag = new ArrayList<Integer>();
@@ -30,15 +31,18 @@ public class Tetris extends PApplet {
     boolean zPressed;
     boolean xPressed;
     boolean cPressed;
+    boolean rPressed;
+
+    int rPressedTime;
 
     boolean gameOver = false;
 
     public void settings() {
         size(500, 600);
-        startTime = (int)(System.nanoTime() / 1000000);
+        startTime = millis();
         refillBag();
         getNewBlock = true;
-        board.addBlock(new tris(n));
+        board.initializeBlock(new tris(n));
         getNewBlock = false;
     }
 
@@ -48,11 +52,14 @@ public class Tetris extends PApplet {
         // left display
         fill(0);
         textSize(20);
-        currentTime = (int)(System.nanoTime() / 1000000) - startTime;
+        currentTime = millis() - startTime;
         text("Time:", 0, 20);
         text((int)currentTime, 0, 40); 
         text((int)autoMove / 1000, 0, 60); 
-        text("bag size: " + bag.size(), 0, 80);    
+        text("bag size: " + bag.size(), 0, 80);   
+        text("Level: " + board.getLevel(), 0, 100);
+        text("Score: " + board.getScore(), 0, 120); 
+
 
         // right display
         // Display key output
@@ -78,7 +85,7 @@ public class Tetris extends PApplet {
             if (getNewBlock) {
                 n = randomBlock();
                 newBlock = new tris(n);
-                board.addBlock(newBlock);
+                board.initializeBlock(newBlock);
                 getNewBlock = false;
             }
     
@@ -87,9 +94,9 @@ public class Tetris extends PApplet {
                 autoMove += 1000;
                 getNewBlock = board.autoMove();
             }
-            else if (currentTime % 3 == 0) {
+            else if (playerMove < currentTime) {
+                playerMove += 75;
                 board.playerMove(moveX, moveY);
-                
             }
     
             if (board.checkLoss()) {
@@ -165,13 +172,28 @@ public class Tetris extends PApplet {
             shiftPressed = true;
         }
         if (key == 'z' || key == 'Z') {
-            board.rotatePiece(3);
+            if (!zPressed) {
+                board.rotatePiece(3);
+            }
+            zPressed = true;
         }
         if (key == 'x' || key == 'X') {
-            board.rotatePiece(1);
+            if (!xPressed) {
+                board.rotatePiece(1);
+            }
+            xPressed = true;
         }
         if (key == 'c' || key == 'C') {
-            board.rotatePiece(2);
+            if (!cPressed) {
+                board.rotatePiece(2);
+            }
+            cPressed = true;
+        }
+        if (key == 'r' || key == 'R') {
+            if (!rPressed) {
+                rPressedTime = millis();
+            }
+            rPressed = true;
         }
     }
 
@@ -190,6 +212,19 @@ public class Tetris extends PApplet {
         }
         if (keyCode == SHIFT) {
             shiftPressed = false;
+        }
+        if (key == 'z' || key == 'Z') {
+            zPressed = false;
+        }
+        if (key == 'x' || key == 'X') {
+            xPressed = false;
+        }
+        if (key == 'c' || key == 'C') {
+            cPressed = false;
+        }
+        if (key == 'r' || key == 'R') {
+            rPressed = false;
+            rPressedTime = 0;
         }
     }
 

@@ -1,6 +1,12 @@
 public class Coordinates {
+    
     int x;
     int y;
+
+    public Coordinates() {
+        x = 0;
+        y = 0;
+    }
 
     public Coordinates(int a, int b) {
         x = a;
