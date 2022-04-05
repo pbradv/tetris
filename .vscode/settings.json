@@ -1,0 +1,7 @@
+{
+    "java.jdt.ls.vmargs": "-XX:+UseParallelGC -XX:GCTimeRatio=4 -XX:AdaptiveSizePolicyWeight=90 -Dsun.zip.disableMemoryMapping=true -Xmx16G -Xms100m",
+    "java.project.referencedLibraries": [
+        "lib/**/*.jar",
+        "/Applications/Processing.app/Contents/Java/core/library/core.jar"
+    ]
+}

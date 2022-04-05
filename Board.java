@@ -93,6 +93,7 @@ public class Board extends PApplet{
     }
 
     public void playerMove(int x, int y) {
+        println(String.format("playerMove(%d, %d)", x, y));
         Coordinates[] allBlocks = controlledBlock.getAllBlocks();
         if (verifyNewPosition(allBlocks, x, 0)) {
             moveBlock(controlledBlock, x, 0);

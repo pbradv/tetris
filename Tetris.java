@@ -1,41 +1,41 @@
 import processing.core.PApplet;
+import processing.core.PGraphics;
 
 import java.util.ArrayList;
 
+
 public class Tetris extends PApplet {
     
-    Board board = new Board();    
+    enum GameState {
+        RUNNING, PAUSED, HELP, ENDED;
+    }
+    
+    Board board = new Board();
     float boardX = 150;
     float boardY = 0;
 
     int startTime;
     int currentTime;
-    int autoMove = 1000;
+
+    // by default, force move every 1000 ms (1s)
+    long autoMove = 1000;
     int playerMove = 75;
 
+
     ArrayList<Integer> bag = new ArrayList<Integer>();
-    ArrayList<Integer> nextBag = new ArrayList<Integer>();
+
     int n = 0;
 
     tris newBlock;
     boolean getNewBlock;
 
+    // move by n blocks (x or y) based on user keys
     int moveX = 0;
     int moveY = 0;
 
-    boolean rightPressed;
-    boolean leftPressed;
-    boolean downPressed;
-    boolean spacePressed;
-    boolean shiftPressed;
-    boolean zPressed;
-    boolean xPressed;
-    boolean cPressed;
-    boolean rPressed;
-
     int rPressedTime;
 
-    boolean gameOver = false;
+    GameState state = GameState.RUNNING;
 
     public void settings() {
         size(500, 600);
@@ -49,39 +49,12 @@ public class Tetris extends PApplet {
     public void draw() {
         background(50);
 
-        // left display
-        fill(0);
-        textSize(20);
-        currentTime = millis() - startTime;
-        text("Time:", 0, 20);
-        text((int)currentTime, 0, 40); 
-        text((int)autoMove / 1000, 0, 60); 
-        text("bag size: " + bag.size(), 0, 80);   
-        text("Level: " + board.getLevel(), 0, 100);
-        text("Score: " + board.getScore(), 0, 120); 
+        currentTime = (int)millis() - startTime;
 
+        // Draw state to game background
+        updateDebugDisplay();
 
-        // right display
-        // Display key output
-        text("RIGHT: " + rightPressed, 350, 20);
-        text("LEFT: " + leftPressed, 350, 40);
-        text("DOWN: " + downPressed, 350, 60);
-        text("SPACE: " + spacePressed, 350, 80);
-        text("SHIFT: " + shiftPressed, 350, 100);
-        text("Z: " + zPressed, 350, 120);
-        text("X: " + xPressed, 350, 140);
-        text("C: " + cPressed, 350, 160);
-
-        // Display new block
-        text(n, 350, 180);
-        text(board.controlledBlock.state, 350, 200);
-        text("Placed: " + getNewBlock, 350, 220);
-
-        // moveX and Y
-        text("moveX: " + moveX, 350, 240);
-        text("moveY: " + moveY, 350, 260);
-
-        if (!gameOver) {
+        if (state == GameState.RUNNING) {
             if (getNewBlock) {
                 n = randomBlock();
                 newBlock = new tris(n);
@@ -89,25 +62,35 @@ public class Tetris extends PApplet {
                 getNewBlock = false;
             }
     
-            update();
             if (autoMove < currentTime) {
                 autoMove += 1000;
                 getNewBlock = board.autoMove();
             }
             else if (playerMove < currentTime) {
                 playerMove += 75;
+            }
+            /*
+             * If the user bumped the X/Y via keyPressed(),
+             *  force a non-timer-based move.
+             */
+            if (moveX != 0 || moveY != 0) {
                 board.playerMove(moveX, moveY);
             }
     
             if (board.checkLoss()) {
-                gameOver = true;
+                state = GameState.ENDED;
             }
         }
 
         // Board draw
         board.drawBoard(boardX, boardY, g);
         
-        if (gameOver) {
+        // help draw
+        if (state == GameState.HELP) {
+            displayHelp();
+        }
+
+        if (state == GameState.ENDED) {
             fill(100);
             rect(170, 250, 160, 100);
             textSize(20);
@@ -118,115 +101,132 @@ public class Tetris extends PApplet {
 
         moveX = 0;
         moveY = 0;
-
     }
 
-    void update() {
-        if (rightPressed) {
-            // Move Right
-            moveX += 1;
+    /**
+     * Display Help Screen
+     * Uses a offscreen buffer ("helpG") to avoid messing up graphics context for the board.
+     */
+    private void displayHelp() {
+
+        String[] helpLines = {
+            "←↑→ == Move",
+            "zxc == Rotate",
+            "p == Pause",
+            "h/? == Help"
+        };
+        int textSize = 20;
+        int rectWidth = 200;
+        int rectHeight = textSize * (helpLines.length + 1);
+        int rectPadding = 5;
+        int textY = 25;
+        PGraphics helpG = createGraphics(rectWidth + rectPadding, rectHeight + rectPadding);
+
+        helpG.beginDraw();
+        // dialog has gray bg, white stroke
+        helpG.fill(64, 64, 64);
+        helpG.stroke(255, 255, 255);
+        helpG.rect(0, 0, rectWidth, rectHeight, 10);        
+        helpG.textSize(textSize);
+        // white text
+        helpG.fill(255,255,255);
+        for (String s: helpLines) {
+            helpG.text(s, 15, textY);
+            textY += textSize;
         }
-        if (leftPressed) {
-            // Move Left
-            moveX += -1;
-        }
-        if (downPressed) {
-            moveY = 1;
-        }
+        helpG.endDraw();
+        image(helpG, width/2 - rectWidth/2, height/2 - rectHeight/2);
+    }
+
+    private void updateDebugDisplay() {
+        // text is white
+        fill(255,255,255);
+
+        // left display
+        textSize(20);
+        text("Sys Time: " + (int)currentTime, 0, 20);
+        text("User Time: " + (int)autoMove / 1000, 0, 60); 
+        text("Bag Size: " + bag.size(), 0, 80);    
+        text("Level: " + board.getLevel(), 0, 100);
+        text("Score: " + board.getScore(), 0, 120); 
+        
+        // Display new block
+        text(n, 350, 180);
+        text(board.controlledBlock.state, 350, 200);
+        text("Placed: " + getNewBlock, 350, 220);
+
+        // moveX and Y
+        text("moveX: " + moveX, 350, 240);
+        text("moveY: " + moveY, 350, 260);
+
+        noFill();
     }
 
     int randomBlock() {
         if (bag.size() == 0) {
-            bag = nextBag;
-            refillBag();
+            bag = refillBag();
         }
         return bag.remove(0);
     }
 
-    private void refillBag() {
+    // 
+    private ArrayList<Integer> refillBag() {
+        var newBag = new ArrayList<Integer>();
         for (int i = 0; i < 7; i++) {
-            nextBag.add((int)(Math.random() * nextBag.size()), i);
+            newBag.add((int)(Math.random() * newBag.size()), i);
         }
+        return newBag;
     }
 
     public void keyPressed() {
+        println("keyPressed, ", keyCode);
         if (keyCode == LEFT) {
-            leftPressed = true;
+            moveX -= 1;
         }
         if (keyCode == RIGHT) {
-            rightPressed = true;
+            moveX += 1;
         }
         if (keyCode == DOWN) {
-            downPressed = true;
+            moveY += 1;
         }
         if (key == ' ') {
-            if (!spacePressed) {
-                board.hardDrop();
-                getNewBlock = true;
-            }
-            spacePressed = true;
+            board.hardDrop();
+            getNewBlock = true;
         }
     
         if (keyCode == SHIFT) {
             getNewBlock = board.holdPiece();
-            shiftPressed = true;
         }
         if (key == 'z' || key == 'Z') {
-            if (!zPressed) {
-                board.rotatePiece(3);
-            }
-            zPressed = true;
+            board.rotatePiece(3);
         }
         if (key == 'x' || key == 'X') {
-            if (!xPressed) {
-                board.rotatePiece(1);
-            }
-            xPressed = true;
+            board.rotatePiece(1);
         }
         if (key == 'c' || key == 'C') {
-            if (!cPressed) {
-                board.rotatePiece(2);
-            }
-            cPressed = true;
+            board.rotatePiece(2);
         }
         if (key == 'r' || key == 'R') {
-            if (!rPressed) {
-                rPressedTime = millis();
+            rPressedTime = millis();
+        }
+        if (key == 'p' || key == 'P') {
+            if (state == GameState.PAUSED) {
+                state = GameState.RUNNING;
             }
-            rPressed = true;
+            else {
+                state = GameState.PAUSED;
+            }
+        }
+        if (key == '?' || key == 'h' || key == 'H') {
+            if (state == GameState.HELP) {
+                state = GameState.RUNNING;
+            }
+            else {
+                state = GameState.HELP;
+            }
         }
     }
 
-    public void keyReleased() {
-        if (keyCode == LEFT) {
-            leftPressed = false;
-        }
-        if (keyCode == RIGHT) {
-            rightPressed = false;
-        }
-        if (keyCode == DOWN) {
-            downPressed = false;
-        }
-        if (key == ' ') {
-            spacePressed = false;
-        }
-        if (keyCode == SHIFT) {
-            shiftPressed = false;
-        }
-        if (key == 'z' || key == 'Z') {
-            zPressed = false;
-        }
-        if (key == 'x' || key == 'X') {
-            xPressed = false;
-        }
-        if (key == 'c' || key == 'C') {
-            cPressed = false;
-        }
-        if (key == 'r' || key == 'R') {
-            rPressed = false;
-            rPressedTime = 0;
-        }
-    }
 
     public static void main(String[] args) {
 
