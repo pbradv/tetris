@@ -193,13 +193,13 @@ public class Tetris extends PApplet {
 
     public void keyPressed() {
         println("keyPressed, ", keyCode);
-        if (keyCode == LEFT) {
+        if (keyCode == LEFT || key == 'j') {
             moveX -= 1;
         }
-        if (keyCode == RIGHT) {
+        if (keyCode == RIGHT || key == 'l') {
             moveX += 1;
         }
-        if (keyCode == DOWN) {
+        if (keyCode == DOWN || key == ',') {
             moveY += 1;
         }
         if (key == ' ') {
@@ -210,7 +210,7 @@ public class Tetris extends PApplet {
         if (keyCode == SHIFT) {
             getNewBlock = board.holdPiece();
         }
-        if (key == 'z' || key == 'Z' || keyCode == UP) {
+        if (key == 'z' || key == 'Z' |key == 'k' || keyCode == UP) {
             board.rotatePiece(3);
         }
         if (key == 'x' || key == 'X') {
