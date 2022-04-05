@@ -192,7 +192,7 @@ public class Board extends PApplet{
         }
 
         totalLinesCleared += columns.size();
-        if (level * 20 < totalLinesCleared) {
+        if (level * 10 < totalLinesCleared) {
             level++;
         }
         

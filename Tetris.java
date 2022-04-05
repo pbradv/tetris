@@ -16,11 +16,11 @@ public class Tetris extends PApplet {
 
     int startTime;
     int currentTime;
+    int nextMoveTime;
+    int currentLevel;
 
     // by default, force move every 1000 ms (1s)
-    long autoMove = 1000;
-    int playerMove = 75;
-
+    int moveIncrement = 1000;
 
     ArrayList<Integer> bag = new ArrayList<Integer>();
 
@@ -39,7 +39,12 @@ public class Tetris extends PApplet {
 
     public void settings() {
         size(500, 600);
+
         startTime = millis();
+        currentTime = startTime;
+        nextMoveTime = currentTime;
+        currentLevel = board.getLevel();
+
         refillBag();
         getNewBlock = true;
         board.initializeBlock(new tris(n));
@@ -49,7 +54,9 @@ public class Tetris extends PApplet {
     public void draw() {
         background(50);
 
-        currentTime = (int)millis() - startTime;
+        if (state == GameState.RUNNING) {
+            currentTime = (int)millis() - startTime;
+        }
 
         // Draw state to game background
         updateDebugDisplay();
@@ -59,16 +66,19 @@ public class Tetris extends PApplet {
                 n = randomBlock();
                 newBlock = new tris(n);
                 board.initializeBlock(newBlock);
+                if (board.getLevel() > currentLevel) {
+                    currentLevel = board.getLevel();
+                    moveIncrement = moveIncrement - 100;
+                    println("New Move Increment: " + moveIncrement);
+                }
+                nextMoveTime = currentTime + moveIncrement;
                 getNewBlock = false;
             }
-    
-            if (autoMove < currentTime) {
-                autoMove += 1000;
+            else if (nextMoveTime < currentTime) {
                 getNewBlock = board.autoMove();
+                nextMoveTime = currentTime + moveIncrement;
             }
-            else if (playerMove < currentTime) {
-                playerMove += 75;
-            }
+
             /*
              * If the user bumped the X/Y via keyPressed(),
              *  force a non-timer-based move.
@@ -95,7 +105,7 @@ public class Tetris extends PApplet {
             rect(170, 250, 160, 100);
             textSize(20);
             fill(200);
-            println(true);
+            //println(true);
             text("Game Over", 170, 270);
         }
 
@@ -144,11 +154,14 @@ public class Tetris extends PApplet {
 
         // left display
         textSize(20);
-        text("Sys Time: " + (int)currentTime, 0, 20);
-        text("User Time: " + (int)autoMove / 1000, 0, 60); 
-        text("Bag Size: " + bag.size(), 0, 80);    
-        text("Level: " + board.getLevel(), 0, 100);
-        text("Score: " + board.getScore(), 0, 120); 
+        text("Sys Time: " + millis(), 0, 20);
+        text("User Time: " + (int)currentTime, 0, 40);
+        text("Next Move: " + (int)(nextMoveTime - currentTime), 0, 60);
+        text("Move Delay: " + (int)moveIncrement, 0, 80);
+        text("Bag Size: " + bag.size(), 0, 100);    
+        text("Lines Cleared: " + board.totalLinesCleared, 0, 120);
+        text("Level: " + currentLevel, 0, 140);
+        text("Score: " + board.getScore(), 0, 160); 
         
         // Display new block
         text(n, 350, 180);
@@ -197,7 +210,7 @@ public class Tetris extends PApplet {
         if (keyCode == SHIFT) {
             getNewBlock = board.holdPiece();
         }
-        if (key == 'z' || key == 'Z') {
+        if (key == 'z' || key == 'Z' || keyCode == UP) {
             board.rotatePiece(3);
         }
         if (key == 'x' || key == 'X') {
@@ -211,6 +224,7 @@ public class Tetris extends PApplet {
         }
         if (key == 'p' || key == 'P') {
             if (state == GameState.PAUSED) {
+                nextMoveTime = currentTime + moveIncrement;
                 state = GameState.RUNNING;
             }
             else {
